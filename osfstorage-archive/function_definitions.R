@@ -1,4 +1,4 @@
-library(rgdal)
+library(sf)
 library(ggplot2)
 library(reshape)
 library(doBy)
@@ -112,8 +112,8 @@ states.fips <- c("09", "10", "25", "24","34","36","42","23","33","44","50")
 #open and store in df
 
 input_fgdb            <- 'Synapse.gdb'
-plants.sp <- readOGR(dsn = input_fgdb, layer = "plant_detail_NAD83")
-plants <- plants.sp@data
+plants.sp <- st_read(dsn = input_fgdb, layer = "plant_detail_NAD83")
+plants <- plants.sp
 colnames(plants)[156]  <- "CLUSTER"
 
 #Generate CF=Annual Generation/(24hr x 365 days x Capacity)

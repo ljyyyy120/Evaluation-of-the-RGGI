@@ -1,5 +1,5 @@
+#install.packages("~/Downloads/rgdal_1.6-7.tar", repos = NULL, type = "source")
 rm(list=ls())
-library(rgdal)
 library(ggplot2)
 library(reshape)
 library(doBy)
@@ -13,13 +13,13 @@ library(mclust)
 library(latticeExtra)
 
 #first set your local directory to the location of the R and data files with setwd()
-setwd("")
+setwd("/Users/lidouhao/Documents/GitHub/8013_group/osfstorage-archive")
 source("function_definitions.R", local=TRUE)
 
 input_fc <- 'RGGI_and_EJ_analysis.gdb'
-ct.sp             <- rgdal::readOGR(dsn=input_fc,   layer = "ACS_2018_5YR_TRACT")
-ct.race.ethnicity <- sf::st_read(   dsn = input_fc, layer = "X03_HISPANIC_OR_LATINO_ORIGIN")
-ct.poverty        <- sf::st_read(   dsn = input_fc, layer = "X17_POVERTY")
+ct.sp             <- sf::st_read(dsn=input_fc,   layer = "ACS_2018_5YR_TRACT")
+ct.race.ethnicity <- sf::st_read(dsn = input_fc, layer = "X03_HISPANIC_OR_LATINO_ORIGIN")
+ct.poverty        <- sf::st_read(dsn = input_fc, layer = "X17_POVERTY")
 
 ct.sp2            <- sp::merge(ct.sp,  ct.race.ethnicity  , by.x="GEOID_Data", by.y="GEOID")
 ct.sp3            <- sp::merge(ct.sp2, ct.poverty         , by.x="GEOID_Data", by.y="GEOID")
@@ -41,21 +41,26 @@ rggi.fencelines.sp <- rggi.plants.sp[!duplicated(rggi.plants.sp$ORSPL),]
 nrow(rggi.fencelines.sp)
 nrow(rggi.plants.sp)
 
-near_distance <- near.distance(ct.rggi.sp,rggi.fencelines.sp)
+#near_distance <- near.distance(ct.rggi.sp,rggi.fencelines.sp)
 #ct.rggi.sp2 <- sp::merge(ct.sp2, near_distance[,c("GEOID_Data","near_dist")], by.x="GEOID_Data", by.y="GEOID_Data")
-ct.rggi.near.sp <- sp::merge(ct.rggi.sp, near_distance, by.x="GEOID_Data", by.y="GEOID_Data")
+#ct.rggi.near.sp <- sp::merge(ct.rggi.sp, near_distance, by.x="GEOID_Data", by.y="GEOID_Data")
+
+rggi.fencelines.sp <- st_transform(rggi.fencelines.sp, st_crs(ct.rggi.sp))
+dist_matrix <- st_distance(ct.rggi.sp, rggi.fencelines.sp)
+min_distances <- apply(dist_matrix, 1, min)
+ct.rggi.near.sp <- ct.rggi.sp %>% mutate(near_dist = min_distances)
 
 #2. 
 #Rename population columns
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e1")]  <- "TOTAL_POPULATION"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e12")] <- "HISPANIC_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e3")]  <- "WHITE_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e4")]  <- "BLACK_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e5")]  <- "NATIVE_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e6")]  <- "ASIAN_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e7")]  <- "HIPI_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e8")]  <- "OTHER_NH_TOTAL_POP"
-colnames(ct.rggi.near.sp@data)[which(colnames(ct.rggi.near.sp@data)=="B03002e9")]  <- "TWO_OR_MORE_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e1")]  <- "TOTAL_POPULATION"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e12")] <- "HISPANIC_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e3")]  <- "WHITE_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e4")]  <- "BLACK_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e5")]  <- "NATIVE_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e6")]  <- "ASIAN_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e7")]  <- "HIPI_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e8")]  <- "OTHER_NH_TOTAL_POP"
+colnames(ct.rggi.near.sp)[which(colnames(ct.rggi.near.sp)=="B03002e9")]  <- "TWO_OR_MORE_NH_TOTAL_POP"
 
 #generate variables
 ct.rggi.near.sp$POP_IN_POVERTY     <- ct.rggi.near.sp$C17002e2 + ct.rggi.near.sp$C17002e3
@@ -63,18 +68,18 @@ ct.rggi.near.sp$POP_NOT_IN_POVERTY <- ct.rggi.near.sp$C17002e1 -ct.rggi.near.sp$
 ct.rggi.near.sp$PER_POVERTY        <- round(ct.rggi.near.sp$POP_IN_POVERTY / (ct.rggi.near.sp$POP_IN_POVERTY + ct.rggi.near.sp$POP_NOT_IN_POVERTY) * 100,2)
 
 #generate WHITE and NOT_WHITE population variables
-ct.rggi.near.sp$NOT_WHITE_TOTAL_POP <-   ct.rggi.near.sp@data$HISPANIC_TOTAL_POP + 
-  ct.rggi.near.sp@data$BLACK_NH_TOTAL_POP + 
-  ct.rggi.near.sp@data$NATIVE_NH_TOTAL_POP + 
-  ct.rggi.near.sp@data$ASIAN_NH_TOTAL_POP +
-  ct.rggi.near.sp@data$HIPI_NH_TOTAL_POP + 
-  ct.rggi.near.sp@data$OTHER_NH_TOTAL_POP +
-  ct.rggi.near.sp@data$TWO_OR_MORE_NH_TOTAL_POP
+ct.rggi.near.sp$NOT_WHITE_TOTAL_POP <-   ct.rggi.near.sp$HISPANIC_TOTAL_POP + 
+  ct.rggi.near.sp$BLACK_NH_TOTAL_POP + 
+  ct.rggi.near.sp$NATIVE_NH_TOTAL_POP + 
+  ct.rggi.near.sp$ASIAN_NH_TOTAL_POP +
+  ct.rggi.near.sp$HIPI_NH_TOTAL_POP + 
+  ct.rggi.near.sp$OTHER_NH_TOTAL_POP +
+  ct.rggi.near.sp$TWO_OR_MORE_NH_TOTAL_POP
 ct.rggi.near.sp$PER_NOT_WHITE       <- round(ct.rggi.near.sp$NOT_WHITE_TOTAL_POP / ct.rggi.near.sp$TOTAL_POPULATION * 100,2)
 
 #generate poverty population variables
 
-df <- ct.rggi.near.sp@data
+df <- ct.rggi.near.sp
 #sort by distance
 df.ordered <- df[order(df$near_dist),]
 
@@ -111,11 +116,11 @@ dev.off()
 
 #DISTRIBUTION OF EGUs IN FACILITIES AND EJCs/non-EJCs
 #assign EJCLUSTER value to one EGU with NA
-rggi.plants.sp@data$EJ_CLUSTER[rggi.plants.sp@data$ORSPL=="54805"] <- 0
+rggi.plants.sp$EJ_CLUSTER[rggi.plants.sp$ORSPL=="54805"] <- 0
 
-nrow(rggi.plants.sp@data)
-ff <- rggi.plants.sp@data
-rggi.fencelines <- distinct(rggi.plants.sp@data, ORSPL, .keep_all = TRUE)
+nrow(rggi.plants.sp)
+ff <- rggi.plants.sp
+rggi.fencelines <- distinct(rggi.plants.sp, ORSPL, .keep_all = TRUE)
 #number of individual facilities
 nrow(rggi.fencelines)
 #number of EGUs by facility
@@ -136,8 +141,8 @@ t1
 t2
 
 #co-located EGU frequency
-rggi.ej    <- subset(rggi.plants.sp@data, EJ_CLUSTER==1)
-rggi.nonej <- subset(rggi.plants.sp@data, EJ_CLUSTER==0)
+rggi.ej    <- subset(rggi.plants.sp, EJ_CLUSTER==1)
+rggi.nonej <- subset(rggi.plants.sp, EJ_CLUSTER==0)
 egu.frequency.in.rggi.ej    <- table(data.frame(table(rggi.ej$ORSPL))$Freq)
 egu.frequency.in.rggi.ej
 round(52/62 *100,1)
@@ -162,7 +167,7 @@ nonej2
 geoids <- unique(rggi.plants.sp$GEOID)
 length(geoids) #219 but there's an NA
 
-ct2010df_ses<-subset(ct.rggi.near.sp@data, GEOID %in% geoids, select=c(PER_NOT_WHITE,PER_POVERTY))
+ct2010df_ses<-subset(ct.rggi.near.sp, GEOID %in% geoids, select=c(PER_NOT_WHITE,PER_POVERTY))
 nrow(ct2010df_ses)
 ct2010df_ses <- ct2010df_ses[complete.cases(ct2010df_ses),]
 wss  <- (nrow(ct2010df_ses)-1)*sum(apply(ct2010df_ses,2,var))
