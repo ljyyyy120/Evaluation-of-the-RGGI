@@ -12,6 +12,7 @@ library(xtable)
 library(mclust)
 library(latticeExtra)
 
+
 #first set your local directory to the location of the R and data files with setwd()
 setwd("/Users/lidouhao/Documents/GitHub/8013_group/osfstorage-archive")
 source("function_definitions.R", local=TRUE)
